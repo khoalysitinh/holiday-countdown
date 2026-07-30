@@ -4,6 +4,6 @@
   "description": "Daily TOEIC & General English practice web application",
   "main": "index.html",
   "scripts": {
-    "build": "echo 'Static web app build ready'"
+    "build": "mkdir -p build && cp -r index.html css js build"
   }
 }

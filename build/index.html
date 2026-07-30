@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="vi" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Daily TOEIC & General English Mastery - Luyện Tiếng Anh Mỗi Ngày</title>
+  <meta name="description" content="Trang web luyện tiếng Anh TOEIC, Lịch sử, Địa lý và Toán học từ cơ bản đến nâng cao với bộ sinh câu hỏi động ngẫu nhiên không trùng lặp. Trau dồi kiến thức mỗi ngày.">
+  <meta name="keywords" content="TOEIC, English practice, Daily Challenge, Math in English, History in English, Geography in English, Tiếng Anh mỗi ngày">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+  <div class="app-container">
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar" id="appSidebar">
+      <div class="brand">
+        <div class="brand-icon">⚡</div>
+        <div>
+          <div class="brand-title">EnglishPro</div>
+          <div class="brand-subtitle">TOEIC & Knowledge Daily</div>
+        </div>
+      </div>
+
+      <nav>
+        <ul class="nav-menu">
+          <li class="nav-item active" data-mode="daily">
+            <button id="navDailyBtn">
+              <span class="nav-icon">🔥</span>
+              <span>Daily Challenge</span>
+            </button>
+          </li>
+          <li class="nav-item" data-mode="infinite">
+            <button id="navInfiniteBtn">
+              <span class="nav-icon">🎯</span>
+              <span>Luyện Tự Do (Random)</span>
+            </button>
+          </li>
+          <li class="nav-item" data-mode="speedrun">
+            <button id="navSpeedrunBtn">
+              <span class="nav-icon">⏱️</span>
+              <span>TOEIC Speed Run</span>
+            </button>
+          </li>
+          <li class="nav-item" data-mode="bookmarks">
+            <button id="navBookmarksBtn">
+              <span class="nav-icon">📚</span>
+              <span>Review Câu Sai (<span id="bookmarkCount">0</span>)</span>
+            </button>
+          </li>
+          <li class="nav-item">
+            <button id="navStatsBtn">
+              <span class="nav-icon">📊</span>
+              <span>Thành Tích & Stats</span>
+            </button>
+          </li>
+        </ul>
+      </nav>
+
+      <!-- User Progress Widget -->
+      <div class="user-widget">
+        <div class="widget-row">
+          <div class="streak-badge" title="Chuỗi ngày luyện tập liên tục">
+            🔥 <span id="userStreak">1</span> Ngày Streak
+          </div>
+          <div class="xp-badge" title="Điểm kinh nghiệm tích lũy">
+            ⚡ <span id="userXP">0</span> XP
+          </div>
+        </div>
+        <div style="display: flex; justify-content: space-between; font-size: 0.78rem; color: var(--text-muted);">
+          <span>Cấp độ: <strong id="userLevelName" style="color: var(--text-primary);">Tập sự</strong></span>
+          <span id="accuracyRate">100% Đúng</span>
+        </div>
+        <div class="progress-bar-container">
+          <div class="progress-bar-fill" id="xpProgressBar"></div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+      <!-- Top Bar Controls -->
+      <header class="top-header">
+        <div class="header-title">
+          <h1 id="pageHeading">🔥 Thách Thức Hàng Ngày (Daily Quest)</h1>
+          <p id="pageSubheading">10 câu hỏi ngẫu nhiên đa chủ đề mỗi ngày để duy trì phong độ tiếng Anh.</p>
+        </div>
+
+        <div class="controls-group">
+          <button class="btn-icon" id="themeToggleBtn" title="Chuyển đổi Sáng/Tối">🌙</button>
+          <button class="btn-icon" id="audioToggleBtn" title="Bật/Tắt Âm thanh Hiệu ứng">🔊</button>
+        </div>
+      </header>
+
+      <!-- Filter Controls (Subject & Level) -->
+      <section class="filter-card" id="filterSection">
+        <div class="filter-section">
+          <span class="filter-label">Chủ đề:</span>
+          <div class="filter-chips" id="topicFilterGroup">
+            <button class="chip-btn active" data-topic="all">🌐 Tất cả</button>
+            <button class="chip-btn" data-topic="toeic">💼 TOEIC & Work</button>
+            <button class="chip-btn" data-topic="math">🧮 Toán & Logic</button>
+            <button class="chip-btn" data-topic="history">🏛️ Lịch sử</button>
+            <button class="chip-btn" data-topic="geography">🌍 Địa lý</button>
+          </div>
+        </div>
+
+        <div class="filter-section">
+          <span class="filter-label">Độ khó:</span>
+          <div class="filter-chips" id="levelFilterGroup">
+            <button class="chip-btn active" data-level="all">🌟 Tất cả level</button>
+            <button class="chip-btn" data-level="basic">🟢 Cơ bản (Basic)</button>
+            <button class="chip-btn" data-level="intermediate">🟡 Trung cấp (B1-B2)</button>
+            <button class="chip-btn" data-level="advanced">🔴 Nâng cao (C1-TOEIC 900)</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Main Quiz Card -->
+      <section class="quiz-card" id="quizCard">
+        <div class="quiz-header">
+          <div class="quiz-meta">
+            <span class="topic-badge" id="badgeTopic">TOEIC & Business</span>
+            <span class="level-badge" id="badgeLevel">Cơ bản</span>
+            <span style="font-size: 0.85rem; color: var(--text-muted);" id="quizCounterText">Câu 1 / 10</span>
+          </div>
+
+          <div class="quiz-actions">
+            <span id="timerBadge" style="display: none; background: rgba(244, 63, 94, 0.15); color: var(--accent-rose); padding: 0.35rem 0.75rem; border-radius: var(--radius-full); font-weight: 700; font-size: 0.85rem;">
+              ⏱️ <span id="timerSeconds">60</span>s
+            </span>
+            <button class="btn-icon" id="bookmarkBtn" title="Lưu câu hỏi này vào Flashcard">🔖</button>
+          </div>
+        </div>
+
+        <!-- Question Content -->
+        <div class="question-box">
+          <div class="question-text" id="questionText">Loading dynamic question...</div>
+          <button class="btn-tts" id="readQuestionBtn">
+            🔊 Phát âm (Pronounce)
+          </button>
+        </div>
+
+        <!-- Options List -->
+        <div class="options-grid" id="optionsGrid">
+          <!-- Dynamically inserted options -->
+        </div>
+
+        <!-- Explanation & Feedback Drawer -->
+        <div class="explanation-card" id="explanationCard" style="display: none;">
+          <div class="explanation-header" id="explanationHeader">
+            <span id="resultIcon">✅</span>
+            <span id="resultTitle">Chính xác!</span>
+          </div>
+          <div class="explanation-text" id="explanationEnText"></div>
+          <div class="explanation-text" id="explanationViText" style="color: var(--text-primary);"></div>
+
+          <div class="vocab-section" id="vocabSection" style="display: none;">
+            <span class="vocab-title">💡 Từ vựng & Cụm từ chìa khóa (Key Vocab)</span>
+            <div class="vocab-list" id="vocabList"></div>
+          </div>
+        </div>
+
+        <!-- Footer Buttons -->
+        <div class="quiz-footer">
+          <button class="btn-secondary" id="skipQuestionBtn">Bỏ qua / Tiếp câu khác</button>
+          <button class="btn-primary" id="nextQuestionBtn" style="display: none;">
+            <span>Câu Tiếp Theo</span>
+            <span>➡️</span>
+          </button>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Stats & Achievements Modal -->
+  <div class="modal-overlay" id="statsModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>📊 Bảng Thành Tích & Thống Kê</h2>
+        <button class="btn-close" id="closeStatsBtn">✕</button>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-value" id="modalStreakVal">1</div>
+          <div class="stat-label">Ngày Streak</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="modalXpVal">0</div>
+          <div class="stat-label">Tổng XP</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="modalAnsweredVal">0</div>
+          <div class="stat-label">Câu Đã Làm</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="modalAccuracyVal">0%</div>
+          <div class="stat-label">Tỷ Lệ Đúng</div>
+        </div>
+      </div>
+
+      <div>
+        <h3 style="font-size: 1.1rem; margin-bottom: 0.75rem;">📈 Tiến độ theo Chủ đề</h3>
+        <div id="subjectBreakdownContainer" style="display: flex; flex-direction: column; gap: 0.75rem;">
+          <!-- Subject progress bars -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- JavaScript Modules -->
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
