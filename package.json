@@ -1,0 +1,9 @@
+{
+  "name": "english-mastery-app",
+  "version": "1.0.0",
+  "description": "Daily TOEIC & General English practice web application",
+  "main": "index.html",
+  "scripts": {
+    "build": "echo 'Static web app build ready'"
+  }
+}
