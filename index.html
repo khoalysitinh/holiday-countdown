@@ -44,7 +44,7 @@
           <li class="nav-item" data-mode="bookmarks">
             <button id="navBookmarksBtn">
               <span class="nav-icon">📚</span>
-              <span>Review Câu Sai (<span id="bookmarkCount">0</span>)</span>
+              <span>Review Mistakes (<span id="bookmarkCount">0</span>)</span>
             </button>
           </li>
           <li class="nav-item">
@@ -183,24 +183,26 @@
       <div class="stats-grid">
         <div class="stat-card">
           <div class="stat-value" id="modalStreakVal">1</div>
-          <div class="stat-label">Ngày Streak</div>
+          <div class="stat-label">Day Streak 🔥</div>
         </div>
         <div class="stat-card">
           <div class="stat-value" id="modalXpVal">0</div>
-          <div class="stat-label">Tổng XP</div>
+          <div class="stat-label">Total XP ⚡</div>
         </div>
         <div class="stat-card">
           <div class="stat-value" id="modalAnsweredVal">0</div>
-          <div class="stat-label">Câu Đã Làm</div>
+          <div class="stat-label">Questions Done</div>
         </div>
         <div class="stat-card">
           <div class="stat-value" id="modalAccuracyVal">0%</div>
-          <div class="stat-label">Tỷ Lệ Đúng</div>
+          <div class="stat-label">Accuracy Rate</div>
         </div>
       </div>
 
+      <p id="streakInfoText" style="font-size:0.8rem;color:var(--text-muted);padding:0.5rem 0;"></p>
+
       <div>
-        <h3 style="font-size: 1.1rem; margin-bottom: 0.75rem;">📈 Tiến độ theo Chủ đề</h3>
+        <h3 style="font-size: 1.1rem; margin-bottom: 0.75rem;">📈 Progress by Subject</h3>
         <div id="subjectBreakdownContainer" style="display: flex; flex-direction: column; gap: 0.75rem;">
           <!-- Subject progress bars -->
         </div>

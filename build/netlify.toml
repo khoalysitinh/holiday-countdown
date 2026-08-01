@@ -1,0 +1,8 @@
+[build]
+  command = "mkdir -p build && cp -r index.html css js build"
+  publish = "build"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
