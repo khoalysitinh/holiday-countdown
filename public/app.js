@@ -446,6 +446,9 @@ function stopChat() {
   chat.unread = 0;
   $('chat-log').replaceChildren();
   updateBadge();
+  clearAttachment();
+  for (const url of imageCache.values()) url.then((u) => URL.revokeObjectURL(u), () => {});
+  imageCache.clear();
 }
 
 function startChat() {
@@ -507,7 +510,9 @@ function addMessages(messages, countUnread) {
     const body = el('div');
     const meta = el('div', 'meta');
     meta.append(el('b', '', m.name), vnTime(m.at));
-    body.append(meta, el('span', 'bubble', m.text));
+    body.append(meta);
+    if (m.image) body.append(chatImage(m.image));
+    if (m.text) body.append(el('span', 'bubble', m.text));
     row.append(el('span', 'ava', m.avatar), body);
     log.append(row);
     chat.last = m;
@@ -526,16 +531,151 @@ function updateBadge() {
 async function sendChat(event) {
   event.preventDefault();
   const input = $('chat-input');
+  const send = $('chat-send');
   const text = input.value.trim();
-  if (!text) return;
-  input.value = '';
+  const image = attachment;
+  if ((!text && !image) || send.disabled) return;
+  send.disabled = true;
+  $('attach-btn').disabled = true;
+  if (image) send.textContent = 'Đang gửi…';
   try {
-    const { message } = await api('chat', { text });
+    const body = { text };
+    if (image) body.image = { data: await toBase64(image.blob), w: image.w, h: image.h };
+    const { message } = await api('chat', body);
+    input.value = '';
+    if (image) {
+      // Reuse the local file for display, so our own picture shows up instantly.
+      imageCache.set(message.image.id, Promise.resolve(URL.createObjectURL(image.blob)));
+      clearAttachment();
+    }
     addMessages([message], false);
   } catch (e) {
-    input.value = text;
+    toast(e.message);
+  } finally {
+    send.disabled = false;
+    $('attach-btn').disabled = false;
+    send.textContent = 'Gửi';
+    input.focus();
+  }
+}
+
+// ---------- chat images ----------
+const IMAGE_MAX_SIDE = 1600;
+const IMAGE_MAX_BYTES = 2 * 1024 * 1024;
+const imageCache = new Map(); // image id -> Promise<objectURL>
+let attachment = null; // { blob, w, h, preview }
+
+function loadImageElement(blob) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.onload = () => resolve({ img, url });
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Không đọc được ảnh này. Thử ảnh JPG/PNG khác nhé.')); };
+    img.src = url;
+  });
+}
+
+function canvasBlob(canvas, quality) {
+  return new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', quality));
+}
+
+// Shrink photos before upload: phone pictures go from several MB to a few hundred KB.
+async function prepareImage(file) {
+  if (!file.type.startsWith('image/') || file.type === 'image/svg+xml') throw new Error('Chỉ gửi được file ảnh (JPG, PNG, GIF, WebP).');
+  const { img, url } = await loadImageElement(file);
+  URL.revokeObjectURL(url);
+  const w0 = img.naturalWidth;
+  const h0 = img.naturalHeight;
+  if (file.type === 'image/gif') {
+    // Keep animation: send as-is.
+    if (file.size > IMAGE_MAX_BYTES) throw new Error('GIF nặng quá (tối đa 2 MB).');
+    return { blob: file, w: w0, h: h0 };
+  }
+  let side = IMAGE_MAX_SIDE;
+  for (const quality of [0.82, 0.72, 0.6, 0.5]) {
+    const scale = Math.min(1, side / Math.max(w0, h0));
+    const w = Math.max(1, Math.round(w0 * scale));
+    const h = Math.max(1, Math.round(h0 * scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#fff'; // transparent PNGs become white, not black
+    ctx.fillRect(0, 0, w, h);
+    ctx.drawImage(img, 0, 0, w, h);
+    const blob = await canvasBlob(canvas, quality);
+    if (blob && blob.size <= IMAGE_MAX_BYTES * 0.75) return { blob, w, h };
+    side = Math.round(side * 0.8);
+  }
+  throw new Error('Ảnh quá lớn, nén mãi không nhỏ được. Thử ảnh khác nhé.');
+}
+
+function toBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result).split(',')[1]);
+    reader.onerror = () => reject(new Error('Không đọc được ảnh.'));
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function attachFile(file) {
+  if (!file) return;
+  try {
+    const prepared = await prepareImage(file);
+    clearAttachment();
+    attachment = { ...prepared, preview: URL.createObjectURL(prepared.blob) };
+    $('attach-preview').src = attachment.preview;
+    $('attach-info').textContent = `Ảnh ${prepared.w}×${prepared.h} · ${Math.max(1, Math.round(prepared.blob.size / 1024))} KB. Thêm chú thích rồi bấm Gửi.`;
+    $('chat-attach').hidden = false;
+    $('chat-input').focus();
+  } catch (e) {
     toast(e.message);
   }
+}
+
+function clearAttachment() {
+  if (attachment?.preview) URL.revokeObjectURL(attachment.preview);
+  attachment = null;
+  $('chat-attach').hidden = true;
+  $('attach-preview').removeAttribute('src');
+  $('chat-file').value = '';
+}
+
+// Images need the auth header, so they are fetched by script and shown via object URLs.
+function imageUrl(id) {
+  if (!imageCache.has(id)) {
+    const p = fetch(`/api/img/${id}`, { headers: { Authorization: `Bearer ${token}` } }).then((r) => {
+      if (!r.ok) throw new Error('img');
+      return r.blob();
+    }).then((b) => URL.createObjectURL(b));
+    p.catch(() => imageCache.delete(id));
+    imageCache.set(id, p);
+  }
+  return imageCache.get(id);
+}
+
+function chatImage(image) {
+  const box = el('button', 'chat-img loading');
+  box.type = 'button';
+  box.style.aspectRatio = `${image.w} / ${image.h}`;
+  box.setAttribute('aria-label', 'Xem ảnh lớn');
+  const img = el('img');
+  img.alt = 'Ảnh gửi trong phòng họp kín';
+  imageUrl(image.id).then((url) => {
+    img.src = url;
+    box.classList.remove('loading');
+    box.append(img);
+    box.addEventListener('click', () => {
+      $('lightbox-img').src = url;
+      $('lightbox').showModal();
+    });
+  }, () => {
+    box.classList.remove('loading');
+    box.classList.add('failed');
+    box.textContent = 'Không tải được ảnh';
+  });
+  return box;
 }
 
 function toggleChat(open) {
@@ -579,6 +719,32 @@ $('answer-form').addEventListener('submit', submitAnswer);
 $('answer').addEventListener('input', (e) => { $('answer-count').textContent = `${e.target.value.length} / 180`; });
 $('wall').addEventListener('click', react);
 $('chat-form').addEventListener('submit', sendChat);
+$('attach-btn').addEventListener('click', () => $('chat-file').click());
+$('chat-file').addEventListener('change', (e) => attachFile(e.target.files[0]));
+$('attach-remove').addEventListener('click', clearAttachment);
+$('chat-input').addEventListener('paste', (e) => {
+  const file = [...(e.clipboardData?.files || [])].find((f) => f.type.startsWith('image/'));
+  if (file) {
+    e.preventDefault();
+    attachFile(file);
+  }
+});
+{
+  const box = $('chat');
+  let depth = 0;
+  const hasFiles = (e) => [...(e.dataTransfer?.types || [])].includes('Files');
+  box.addEventListener('dragenter', (e) => { if (hasFiles(e)) { depth++; box.classList.add('dragging'); } });
+  box.addEventListener('dragleave', () => { if (--depth <= 0) { depth = 0; box.classList.remove('dragging'); } });
+  box.addEventListener('dragover', (e) => { if (hasFiles(e)) e.preventDefault(); });
+  box.addEventListener('drop', (e) => {
+    if (!hasFiles(e)) return;
+    e.preventDefault();
+    depth = 0;
+    box.classList.remove('dragging');
+    attachFile([...e.dataTransfer.files].find((f) => f.type.startsWith('image/')) || e.dataTransfer.files[0]);
+  });
+}
+$('lightbox').addEventListener('click', () => $('lightbox').close());
 $('chat-fab').addEventListener('click', () => toggleChat(true));
 $('chat-close').addEventListener('click', () => toggleChat(false));
 $('me-chip').addEventListener('click', openProfile);

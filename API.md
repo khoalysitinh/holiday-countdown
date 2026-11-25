@@ -36,7 +36,8 @@ Every endpoint except `public`, `register` and `login` needs the header `Authori
 | `POST /api/react` | `{ id, emoji }` with emoji ∈ `😂 🤗 🔥 ✊ 💀` | `State`. Sending the same emoji again removes it. |
 | `POST /api/profile` | `{ name?, avatar? }` | `State` |
 | `GET /api/chat?after=<id>` | `after` is optional | `{ messages }` from today and yesterday, oldest first, at most 150. With `after`, only messages newer than that id. |
-| `POST /api/chat` | `{ text (≤500 chars) }` | `{ message }` |
+| `POST /api/chat` | `{ text (≤500 chars), image?: { data: base64, w, h } }` (text or image required) | `{ message }`; image messages carry `image: { id, w, h }`. The image must really be JPG/PNG/GIF/WebP (checked from its bytes, SVG refused) and at most 2 MB. The browser shrinks photos before upload. |
+| `GET /api/img/<id>` | – | The image bytes. Requires login like everything else, so the frontend fetches with the auth header and displays the image through an object URL. |
 
 `State` = `{ today, serverTime, quote: { no, of, text }, mission: { title, hint }, fire: { current, best, deaths, lastDeath, need, fuel, litToday, weekend, fuelers[] }, me: { …member, answer, week[] }, members[], answers[] }`.
 

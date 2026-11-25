@@ -26,6 +26,16 @@ export function getKV() {
       const { blobs } = await store.list({ prefix });
       return blobs.map((b) => b.key);
     },
+    // Binary blobs (chat images). Kept in a separate store so they never show up in JSON listings.
+    async setBinary(key, bytes, metadata) {
+      const media = getStore({ name: `${STORE_NAME}-media`, consistency: 'strong' });
+      await media.set(key, bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength), { metadata });
+    },
+    async getBinary(key) {
+      const media = getStore({ name: `${STORE_NAME}-media`, consistency: 'strong' });
+      const entry = await media.getWithMetadata(key, { type: 'arrayBuffer' });
+      return entry && { bytes: new Uint8Array(entry.data), metadata: entry.metadata };
+    },
   };
 }
 
@@ -40,9 +50,24 @@ function fileKV(dir) {
       throw err;
     }
   }
+  const mediaFor = (key) => path.join(dir, 'media', encodeURIComponent(key));
   return {
     read,
     get: async (key) => (await read(key))?.data ?? null,
+    async setBinary(key, bytes, metadata) {
+      await fs.mkdir(path.join(dir, 'media'), { recursive: true });
+      await fs.writeFile(mediaFor(key) + '.meta', JSON.stringify(metadata));
+      await fs.writeFile(mediaFor(key) + '.bin', bytes);
+    },
+    async getBinary(key) {
+      try {
+        const [bytes, meta] = await Promise.all([fs.readFile(mediaFor(key) + '.bin'), fs.readFile(mediaFor(key) + '.meta', 'utf8')]);
+        return { bytes: new Uint8Array(bytes), metadata: JSON.parse(meta) };
+      } catch (err) {
+        if (err.code === 'ENOENT') return null;
+        throw err;
+      }
+    },
     async set(key, value, revision) {
       const file = fileFor(key);
       const previous = pendingWrites.get(file) ?? Promise.resolve();

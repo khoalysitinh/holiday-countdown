@@ -247,6 +247,30 @@ async function publicState(kv) {
 
 // ---------- chat ----------
 const chatId = (at) => `${String(at).padStart(14, '0')}-${crypto.randomBytes(4).toString('hex')}`;
+const IMAGE_MAX_BYTES = 2 * 1024 * 1024;
+
+// Trust the bytes, not the client's claimed type. SVG is deliberately not allowed (it can carry script).
+function sniffImage(bytes) {
+  const at = (i, ...sig) => sig.every((b, k) => bytes[i + k] === b);
+  if (at(0, 0xff, 0xd8, 0xff)) return 'image/jpeg';
+  if (at(0, 0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a)) return 'image/png';
+  if (at(0, 0x47, 0x49, 0x46, 0x38)) return 'image/gif';
+  if (at(0, 0x52, 0x49, 0x46, 0x46) && at(8, 0x57, 0x45, 0x42, 0x50)) return 'image/webp';
+  return null;
+}
+
+async function storeChatImage(kv, image) {
+  const data = String(image?.data || '');
+  if (!/^[A-Za-z0-9+/]+={0,2}$/.test(data)) fail(400, 'Ảnh không hợp lệ.');
+  const bytes = new Uint8Array(Buffer.from(data, 'base64'));
+  if (bytes.length > IMAGE_MAX_BYTES) fail(413, 'Ảnh nặng quá (tối đa 2 MB). Thử ảnh nhỏ hơn nhé.');
+  const type = sniffImage(bytes);
+  if (!type) fail(415, 'Chỉ gửi được ảnh JPG, PNG, GIF hoặc WebP.');
+  const dim = (v) => Math.max(1, Math.min(10000, Math.round(Number(v) || 0))) || 1;
+  const id = crypto.randomBytes(16).toString('hex');
+  await kv.setBinary(`img/${id}`, bytes, { type });
+  return { id, w: dim(image.w), h: dim(image.h) };
+}
 
 async function readChat(kv, after) {
   const today = todayKey();
@@ -335,11 +359,26 @@ export async function handle(req) {
     }
     if (req.method === 'POST' && route === 'chat') {
       const text = cleanText(body.text, CHAT_MAX_LEN);
-      if (!text) fail(400, 'Tin nhắn trống trơn.');
+      if (!text && !body.image) fail(400, 'Tin nhắn trống trơn.');
+      const image = body.image ? await storeChatImage(kv, body.image) : null;
       const at = Date.now();
       const message = { id: chatId(at), user: me.username, name: me.name, avatar: me.avatar, text, at };
+      if (image) message.image = image;
       await kv.set(`chat/${todayKey(at)}/${message.id}`, message, null);
       return json({ message });
+    }
+    const imageRoute = route.match(/^img\/([a-f0-9]{32})$/);
+    if (req.method === 'GET' && imageRoute) {
+      const file = await kv.getBinary(`img/${imageRoute[1]}`);
+      if (!file) fail(404, 'Ảnh không còn nữa.');
+      return new Response(file.bytes, {
+        headers: {
+          'content-type': file.metadata?.type || 'application/octet-stream',
+          'cache-control': 'private, max-age=31536000, immutable',
+          'x-content-type-options': 'nosniff',
+          'content-security-policy': "default-src 'none'",
+        },
+      });
     }
 
     if (req.method === 'POST' && Object.hasOwn(actions, route)) {
