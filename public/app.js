@@ -1,14 +1,15 @@
 // Những Con Cá Bị Trừ KPI — client.
+import { createAmbient } from './ambient.js';
 // Mọi nội dung người dùng nhập đều đi qua textContent, không bao giờ innerHTML.
 
 const AVATARS = ['🦊', '🐼', '🐸', '🐧', '🦉', '🐙', '🦖', '🐱', '🐶', '🐹', '🦄', '🐢', '🐝', '🦥', '🐻', '🐵'];
 const REACTIONS = [['😂', 'Buồn cười'], ['🤗', 'Ôm một cái'], ['🔥', 'Cháy quá'], ['✊', 'Đồng lòng'], ['💀', 'Hết cứu']];
 const SLOGANS = [
   'Tan làm đúng giờ là quyền thiêng liêng',
-  'Họp không agenda là họp không tồn tại',
+  'Họp gì họp quài zậy',
   'Cá bị trừ KPI vẫn bơi',
-  'Mỗi ngày một que củi, lửa hội không tắt',
-  'Không trả lời tin nhắn công việc sau 21h',
+  'Mỗi ngày một giải pháp, mỗi ngày một vấn đề',
+  'Không trả lời tin nhắn công việc sau 17h30',
   'Ngủ trưa là quyền con người',
   'Đồng lòng bơi ngược dòng',
   'Chuyện trong hội ở lại trong hội',
@@ -20,6 +21,7 @@ const CHAT_FAST = 4000;
 const CHAT_SLOW = 20000;
 
 const $ = (id) => document.getElementById(id);
+const ambient = createAmbient($('ambient-bg'), $('ambient-fg'));
 let token = localStorage.getItem(TOKEN_KEY) || '';
 let state = null;
 let clockOffset = 0;
@@ -122,6 +124,7 @@ function renderGateFire(info) {
   const f = info.fire;
   const box = $('gate-fire');
   box.classList.toggle('is-dead', f.current === 0 && !f.litToday);
+  ambient.setLevel(f.litToday ? 'is-lit' : 'gate');
   if (!info.members) {
     $('gate-fire-title').textContent = 'Lửa hội chưa từng được thắp.';
     $('gate-fire-sub').textContent = 'Hãy là con cá đầu tiên nhóm lửa.';
@@ -148,6 +151,8 @@ async function loadPublic() {
 
 function showGate() {
   document.body.dataset.view = 'gate';
+  document.body.classList.remove('blaze');
+  ambient.setSource(() => document.querySelector('.gate-fire .flame')?.getBoundingClientRect());
   setMode(authMode);
   loadPublic();
 }
@@ -198,7 +203,8 @@ async function enterApp() {
   document.body.dataset.view = 'app';
   startChat();
   clearInterval(stateTimer);
-  stateTimer = setInterval(() => { if (!document.hidden) refresh(); }, 30000);
+  ambient.setSource(() => $('flame').getBoundingClientRect());
+  stateTimer = setInterval(() => { if (!document.hidden) refresh(); }, 15000);
   clearInterval(tickTimer);
   tickTimer = setInterval(tick, 1000);
 }
@@ -224,9 +230,35 @@ async function refresh() {
 }
 
 function apply(next) {
+  const prev = state;
   state = next;
   clockOffset = next.serverTime - Date.now();
   render();
+  if (prev && prev.today === next.today && next.fire.fuel > prev.fire.fuel) celebrate(prev, next);
+}
+
+// Someone added a log since we last looked: make the fire roar.
+function celebrate(prev, next) {
+  const added = next.fire.fuel - prev.fire.fuel;
+  const justLit = !prev.fire.litToday && next.fire.litToday;
+  ambient.burst(justLit ? 3 : added);
+  const panel = $('fire-panel');
+  panel.classList.remove('flare');
+  void panel.offsetWidth; // restart the animation
+  panel.classList.add('flare');
+  setTimeout(() => panel.classList.remove('flare'), 1600);
+  // Our own log already gets a toast from submitAnswer; announce everyone else's.
+  const before = new Set(prev.fire.fuelers.map((p) => p.name));
+  const others = next.fire.fuelers.filter((p) => p.name && !before.has(p.name) && p.name !== next.me.name).map((p) => p.name);
+  const anonCount = (list) => list.filter((p) => !p.name).length;
+  // Our own anonymous log is announced by submitAnswer, so don't count it here.
+  const mineAnon = next.me.answer?.anon && !prev.me.answer ? 1 : 0;
+  const newAnon = anonCount(next.fire.fuelers) - anonCount(prev.fire.fuelers) - mineAnon;
+  if (newAnon > 0) others.push(newAnon === 1 ? 'Một con cá giấu tên' : `${newAnon} con cá giấu tên`);
+  if (!others.length) return;
+  toast(justLit
+    ? `🔥 ${others.join(', ')} vừa góp củi. LỬA HỘI ĐÃ ĐỦ CỦI, CHÁY HẾT CỠ!`
+    : `🪵 ${others.join(', ')} vừa góp củi! Lửa bùng lên rồi.`);
 }
 
 function tick() {
@@ -263,6 +295,8 @@ function renderFire() {
   else mode = 'is-dead';
   panel.classList.remove('is-lit', 'is-rest', 'is-weak', 'is-dead');
   panel.classList.add(mode);
+  ambient.setLevel(mode);
+  document.body.classList.toggle('blaze', mode === 'is-lit');
 
   $('fire-days').textContent = f.current;
   $('fire-kicker').textContent = {
@@ -297,7 +331,7 @@ function renderFire() {
   fuelText.replaceChildren(el('b', '', `${f.fuel}/${f.need}`), ` que củi hôm nay · ${state.members.length} con cá trong hội`);
   $('fuelers').replaceChildren(...f.fuelers.map((p) => {
     const chip = el('span');
-    chip.append(emoji(p.avatar), p.name);
+    chip.append(emoji(p.avatar), p.name ?? 'Cá giấu tên');
     return chip;
   }));
   $('fire-meta').textContent = `Kỷ lục: ${f.best} ngày · Đã tắt ${f.deaths} lần · Luật: mỗi ngày làm việc cần ≥ ${f.need} con cá góp củi. Thiếu một ngày là lửa tắt, chuỗi về 0.`;
@@ -447,7 +481,7 @@ function stopChat() {
   $('chat-log').replaceChildren();
   updateBadge();
   clearAttachment();
-  for (const url of imageCache.values()) url.then((u) => URL.revokeObjectURL(u), () => {});
+  for (const url of imageCache.values()) url.then((u) => URL.revokeObjectURL(u), () => { });
   imageCache.clear();
 }
 

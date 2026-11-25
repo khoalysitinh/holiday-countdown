@@ -180,9 +180,16 @@ async function loadAllUsers(kv) {
   return users.filter(Boolean);
 }
 
-function publicMember(u, today) {
-  const { current, best } = streakOf(u.days || {}, today);
-  return { username: u.username, name: u.name, avatar: u.avatar, streak: current, best, fueledToday: fueled(u.days?.[today]) };
+// For other viewers, an anonymous answer today is not shown (no "fueled today", no streak bump)
+// until the day is over, otherwise the leaderboard would reveal who wrote it.
+function publicMember(u, today, hideAnonToday) {
+  let days = u.days || {};
+  if (hideAnonToday && days[today]?.challenge?.anon) {
+    days = { ...days };
+    delete days[today];
+  }
+  const { current, best } = streakOf(days, today);
+  return { username: u.username, name: u.name, avatar: u.avatar, streak: current, best, fueledToday: fueled(days[today]) };
 }
 
 async function buildState(kv, me) {
@@ -217,9 +224,12 @@ async function buildState(kv, me) {
   }
   answers.sort((a, b) => b.at - a.at);
 
-  const members = users.map((u) => publicMember(u, today));
+  const members = users.map((u) => publicMember(u, today, u.username !== me.username));
   const fire = fireOf(users, today);
-  fire.fuelers = members.filter((m) => m.fueledToday).map(({ name, avatar }) => ({ name, avatar }));
+  // Anonymous answers stay anonymous here too, otherwise the list would give their authors away.
+  fire.fuelers = users
+    .map((u) => u.days?.[today]?.challenge && (u.days[today].challenge.anon ? { name: null, avatar: '🐟' } : { name: u.name, avatar: u.avatar }))
+    .filter(Boolean);
   const myDay = me.days?.[today] || {};
   return {
     today,

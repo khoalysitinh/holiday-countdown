@@ -31,9 +31,13 @@ body {
   margin: 0;
   font: 400 15px/1.55 var(--body);
   color: var(--text);
-  background: var(--ink);
+  background: #0d0a08;
   min-height: 100vh;
 }
+/* Fire layers: background flames sit between the page background and the content; sparks float above it. */
+.ambient, .sparks { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.ambient { z-index: 1; }
+.sparks { z-index: 25; }
 button, input, textarea { font: inherit; color: inherit; }
 button { cursor: pointer; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
@@ -107,12 +111,52 @@ textarea { resize: vertical; min-height: 84px; }
 .is-dead .flame i { animation: none; }
 .is-dead .flame b { opacity: 0; animation: none; }
 .is-rest .flame { --scale: .45; filter: saturate(.7) brightness(.85); }
-@media (prefers-reduced-motion: reduce) { .flame i, .flame b, .ticker-track { animation: none !important; } }
+/* Fully lit: a bigger, faster, hotter flame. */
+.is-lit .flame { --scale: 1.14; filter: saturate(1.2) brightness(1.08); }
+.is-lit .flame i:nth-child(1) { animation-duration: 1.05s; }
+.is-lit .flame i:nth-child(2) { animation-duration: .75s; }
+.is-lit .flame i:nth-child(3) { animation-duration: .55s; }
+.is-lit .flame b { width: 240%; height: 95%; background: radial-gradient(closest-side, rgba(255,122,24,.6), transparent); }
+
+/* Someone added a log: flare + shake. */
+.fire-panel.flare { animation: shake .55s ease; }
+.fire-panel.flare .flame { animation: flare 1.5s cubic-bezier(.2,.8,.3,1); }
+@keyframes flare {
+  0% { transform: scale(var(--scale)); }
+  14% { transform: scale(calc(var(--scale) * 1.6)); filter: brightness(1.7) saturate(1.4); }
+  100% { transform: scale(var(--scale)); }
+}
+@keyframes shake {
+  0%, 100% { translate: 0 0; }
+  20% { translate: -5px 2px; } 40% { translate: 5px -2px; } 60% { translate: -3px 1px; } 80% { translate: 3px 0; }
+}
+
+/* Whole site ablaze while today's fire has enough logs. */
+body.blaze .card::after, body.blaze .quote-banner::after {
+  content: ''; position: absolute; inset: -2px; border-radius: inherit; pointer-events: none;
+  box-shadow: 0 0 36px 3px rgba(255,122,24,.5); opacity: .3; animation: emberglow 2.8s ease-in-out infinite;
+}
+body.blaze .grid-2 .card:nth-child(2)::after, body.blaze .board::after { animation-delay: -1.4s; }
+@keyframes emberglow { 50% { opacity: .95; } }
+body.blaze .topbar { box-shadow: 0 8px 36px rgba(255,122,24,.35); }
+body.blaze .ticker {
+  background: linear-gradient(90deg, var(--red), var(--fire), var(--red-dark), var(--ember), var(--red));
+  background-size: 300% 100%; animation: tickerfire 7s linear infinite;
+}
+@keyframes tickerfire { to { background-position: 300% 0; } }
+body.blaze .fire-panel { box-shadow: 5px 5px 0 var(--red), 0 0 70px rgba(255,122,24,.5); border-color: rgba(255,176,46,.5); }
+body.blaze .chat { box-shadow: 5px 5px 0 var(--red), 0 0 50px rgba(255,122,24,.3); }
+body.blaze .fire-count { text-shadow: 0 0 28px rgba(255,150,40,.8); }
+
+@media (prefers-reduced-motion: reduce) {
+  .flame i, .flame b, .ticker-track, body.blaze .ticker, body.blaze .card::after, body.blaze .quote-banner::after,
+  .fire-panel.flare, .fire-panel.flare .flame { animation: none !important; }
+}
 
 /* ---------- gate (login + intro) ---------- */
 .gate { position: relative; min-height: 100vh; color: var(--paper); overflow: hidden; }
 .gate-bg {
-  position: absolute; inset: 0;
+  position: absolute; inset: 0; z-index: 0;
   background:
     linear-gradient(100deg, rgba(22,18,14,.97) 0%, rgba(22,18,14,.9) 45%, rgba(22,18,14,.55) 100%),
     url('/assets/office.webp') center / cover no-repeat;
@@ -123,7 +167,7 @@ textarea { resize: vertical; min-height: 84px; }
   background: repeating-linear-gradient(0deg, rgba(255,255,255,.025) 0 1px, transparent 1px 3px);
 }
 .gate-inner {
-  position: relative; max-width: 1180px; margin: 0 auto; padding: 56px 28px 48px;
+  position: relative; z-index: 2; max-width: 1180px; margin: 0 auto; padding: 56px 28px 48px;
   display: grid; grid-template-columns: 1.25fr .9fr; gap: 56px; align-items: start;
 }
 .classified { margin: 0 0 22px; font-size: 13px; letter-spacing: .06em; text-transform: uppercase; color: #cdbf9f; }
@@ -173,10 +217,11 @@ textarea { resize: vertical; min-height: 84px; }
 .fine { margin: 16px 0 0; font-size: 12px; color: var(--muted); text-align: center; }
 
 /* ---------- app shell ---------- */
-.app { min-height: 100vh; background: var(--paper); }
+.app { min-height: 100vh; }
 .topbar {
   position: sticky; top: 0; z-index: 20; display: flex; align-items: center; justify-content: space-between; gap: 16px;
-  padding: 10px 24px; background: var(--ink); color: var(--paper);
+  padding: 10px 24px; background: rgba(16,12,9,.82); color: var(--paper);
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); transition: box-shadow .6s ease;
 }
 .brand { display: flex; align-items: center; gap: 12px; color: inherit; text-decoration: none; min-width: 0; }
 .brand img { border-radius: 9px; }
@@ -190,15 +235,15 @@ textarea { resize: vertical; min-height: 84px; }
 }
 .me-chip span:first-child { font: 20px/1 var(--emoji); }
 .me-chip span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ticker { overflow: hidden; background: var(--red); color: #fff; border-bottom: 3px solid var(--ink); }
+.ticker { position: relative; z-index: 2; overflow: hidden; background: var(--red); color: #fff; border-bottom: 3px solid #000; }
 .ticker-track { display: flex; width: max-content; animation: ticker 60s linear infinite; }
 .ticker-track span { padding: 7px 0; font: 800 13px/1 var(--display); letter-spacing: .1em; text-transform: uppercase; white-space: nowrap; }
 .ticker-track span::after { content: '✊'; margin: 0 22px; }
 @keyframes ticker { to { transform: translateX(-50%); } }
 
-.base { max-width: 1320px; margin: 0 auto; padding: 24px; display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 24px; align-items: start; }
+.base { position: relative; z-index: 2; max-width: 1320px; margin: 0 auto; padding: 24px; display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 24px; align-items: start; }
 .base-main { display: grid; gap: 20px; min-width: 0; }
-.card { background: #fbf6ea; border: 2px solid var(--ink); border-radius: var(--radius); padding: 22px; box-shadow: 5px 5px 0 var(--ink); }
+.card { position: relative; background: #fbf6ea; border: 2px solid #000; border-radius: var(--radius); padding: 22px; box-shadow: 6px 6px 0 rgba(0,0,0,.65); }
 .card h3 { margin: 0; font: 800 22px/1.2 var(--display); letter-spacing: -.01em; }
 .card-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 14px; }
 .pill { font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 999px; background: var(--paper-2); color: var(--muted); white-space: nowrap; }
@@ -207,11 +252,11 @@ textarea { resize: vertical; min-height: 84px; }
 /* fire panel */
 .fire-panel {
   position: relative; display: grid; grid-template-columns: 220px 1fr; gap: 28px; align-items: center;
-  padding: 28px 30px; border-radius: 18px; color: var(--paper); overflow: hidden;
-  background: radial-gradient(circle at 18% 80%, rgba(255,122,24,.28), transparent 45%), var(--ink);
-  border: 2px solid var(--ink); box-shadow: 5px 5px 0 var(--red);
+  padding: 28px 30px; border-radius: 18px; color: var(--paper);
+  background: radial-gradient(circle at 18% 80%, rgba(255,122,24,.28), transparent 45%), rgba(16,12,9,.72);
+  border: 2px solid rgba(255,176,46,.22); box-shadow: 5px 5px 0 var(--red); transition: box-shadow .6s ease;
 }
-.fire-panel.is-dead { background: radial-gradient(circle at 18% 80%, rgba(139,130,119,.18), transparent 45%), var(--ink); box-shadow: 5px 5px 0 var(--ash); }
+.fire-panel.is-dead { background: radial-gradient(circle at 18% 80%, rgba(139,130,119,.18), transparent 45%), rgba(16,12,9,.8); border-color: rgba(139,130,119,.25); box-shadow: 5px 5px 0 var(--ash); }
 .fire-visual { position: relative; display: grid; place-items: end center; height: 200px; }
 .fire-visual .flame { margin-bottom: 26px; }
 .logs { position: absolute; bottom: 8px; width: 150px; height: 34px; }
@@ -236,7 +281,7 @@ textarea { resize: vertical; min-height: 84px; }
 .fire-meta { margin: 12px 0 0; font-size: 13px; color: #a89c87; }
 
 /* quote */
-.quote-banner { position: relative; padding: 22px 26px 22px 30px; border-radius: var(--radius); background: var(--red); color: #fff; border: 2px solid var(--ink); box-shadow: 5px 5px 0 var(--ink); }
+.quote-banner { position: relative; padding: 22px 26px 22px 30px; border-radius: var(--radius); background: var(--red); color: #fff; border: 2px solid #000; box-shadow: 6px 6px 0 rgba(0,0,0,.65); }
 .quote-banner .kicker { color: #ffd9cf; }
 .quote-banner blockquote { margin: 0; font: 800 clamp(22px, 2.6vw, 30px)/1.25 var(--display); letter-spacing: -.01em; }
 .quote-banner blockquote::before { content: '“'; } .quote-banner blockquote::after { content: '”'; }
@@ -290,8 +335,8 @@ textarea { resize: vertical; min-height: 84px; }
 /* chat */
 .chat {
   position: sticky; top: 92px; height: calc(100vh - 116px); min-height: 420px;
-  display: flex; flex-direction: column; background: var(--ink); color: var(--paper);
-  border-radius: 18px; border: 2px solid var(--ink); box-shadow: 5px 5px 0 var(--red); overflow: hidden;
+  display: flex; flex-direction: column; background: rgba(16,12,9,.8); color: var(--paper);
+  border-radius: 18px; border: 2px solid rgba(255,176,46,.2); box-shadow: 5px 5px 0 var(--red); overflow: hidden;
 }
 .chat-head { display: flex; justify-content: space-between; gap: 10px; padding: 16px 18px 12px; border-bottom: 1px solid rgba(241,232,212,.12); }
 .chat-head h3 { margin: 0; font: 800 20px/1.2 var(--display); text-transform: uppercase; }
@@ -356,7 +401,7 @@ textarea { resize: vertical; min-height: 84px; }
 @media (max-width: 1080px) {
   .base { grid-template-columns: 1fr; }
   .chat {
-    position: fixed; inset: auto 0 0 0; top: auto; z-index: 40; height: min(78vh, 640px);
+    position: fixed; inset: auto 0 0 0; top: auto; z-index: 40; height: min(78vh, 640px); background: #16120e;
     border-radius: 18px 18px 0 0; box-shadow: 0 -10px 40px rgba(0,0,0,.4); transform: translateY(105%); transition: transform .25s ease;
   }
   .chat.open { transform: none; }
