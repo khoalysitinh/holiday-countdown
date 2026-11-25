@@ -1,8 +1,11 @@
 [build]
-  command = "mkdir -p build && cp -r index.html css js build"
-  publish = "build"
+  # Static site, no build step. Set explicitly so an old build command saved in the Netlify UI is overridden.
+  command = "echo 'Không cần build'"
+  publish = "public"
+  functions = "netlify/functions"
 
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
+[build.environment]
+  NODE_VERSION = "22"
+
+[functions]
+  node_bundler = "esbuild"

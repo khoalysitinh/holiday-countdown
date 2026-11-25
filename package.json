@@ -1,9 +1,13 @@
 {
-  "name": "english-mastery-app",
+  "name": "hoi-muon-nghi",
   "version": "1.0.0",
-  "description": "Daily TOEIC & General English practice web application",
-  "main": "index.html",
+  "private": true,
+  "description": "Hội Muốn Nghỉ — web điểm danh sinh tồn cho anh em văn phòng",
+  "type": "module",
   "scripts": {
-    "build": "mkdir -p build && cp -r index.html css js build"
+    "dev": "node dev-server.mjs"
+  },
+  "dependencies": {
+    "@netlify/blobs": "^11.1.11"
   }
 }
