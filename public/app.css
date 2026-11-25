@@ -120,11 +120,11 @@ textarea { resize: vertical; min-height: 84px; }
 
 /* Someone added a log: flare + shake. */
 .fire-panel.flare { animation: shake .55s ease; }
-.fire-panel.flare .flame { animation: flare 1.5s cubic-bezier(.2,.8,.3,1); }
+.fire-panel.flare .campfire { animation: flare 1.5s cubic-bezier(.2,.8,.3,1); }
 @keyframes flare {
-  0% { transform: scale(var(--scale)); }
-  14% { transform: scale(calc(var(--scale) * 1.6)); filter: brightness(1.7) saturate(1.4); }
-  100% { transform: scale(var(--scale)); }
+  0% { transform: scale(var(--scale, 1)); }
+  14% { transform: scale(calc(var(--scale, 1) * 1.35)); filter: brightness(1.6) saturate(1.3); }
+  100% { transform: scale(var(--scale, 1)); }
 }
 @keyframes shake {
   0%, 100% { translate: 0 0; }
@@ -150,7 +150,7 @@ body.blaze .fire-count { text-shadow: 0 0 28px rgba(255,150,40,.8); }
 
 @media (prefers-reduced-motion: reduce) {
   .flame i, .flame b, .ticker-track, body.blaze .ticker, body.blaze .card::after, body.blaze .quote-banner::after,
-  .fire-panel.flare, .fire-panel.flare .flame { animation: none !important; }
+  .fire-panel.flare, .fire-panel.flare .campfire, .campfire.pop { animation: none !important; }
 }
 
 /* ---------- gate (login + intro) ---------- */
@@ -251,15 +251,25 @@ body.blaze .fire-count { text-shadow: 0 0 28px rgba(255,150,40,.8); }
 
 /* fire panel */
 .fire-panel {
-  position: relative; display: grid; grid-template-columns: 220px 1fr; gap: 28px; align-items: center;
+  position: relative; display: grid; grid-template-columns: 260px 1fr; gap: 28px; align-items: center;
   padding: 28px 30px; border-radius: 18px; color: var(--paper);
   background: radial-gradient(circle at 18% 80%, rgba(255,122,24,.28), transparent 45%), rgba(16,12,9,.72);
   border: 2px solid rgba(255,176,46,.22); box-shadow: 5px 5px 0 var(--red); transition: box-shadow .6s ease;
 }
 .fire-panel.is-dead { background: radial-gradient(circle at 18% 80%, rgba(139,130,119,.18), transparent 45%), rgba(16,12,9,.8); border-color: rgba(139,130,119,.25); box-shadow: 5px 5px 0 var(--ash); }
-.fire-visual { position: relative; display: grid; place-items: end center; height: 200px; }
-.fire-visual .flame { margin-bottom: 26px; }
-.logs { position: absolute; bottom: 8px; width: 150px; height: 34px; }
+.fire-visual { position: relative; height: 300px; }
+.campfire { position: absolute; left: 50%; bottom: 0; z-index: 1; width: 300px; height: 340px; translate: -50% 0; transform-origin: 50% 88%; }
+.campfire canvas { display: block; width: 100%; height: 100%; }
+.campfire.pop { animation: popkick .32s ease-out; }
+@keyframes popkick { 30% { transform: scale(1.07, 1.1); } }
+.fire-panel.is-sun .logs { opacity: 0; }
+.logs { transition: opacity .8s ease; }
+.fire-stage { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 10px 0 0; font-size: 14px; color: #cdbf9f; }
+.fire-stage b { padding: 4px 12px; border-radius: 999px; background: linear-gradient(90deg, var(--red), var(--fire)); color: #fff; font: 800 13px/1.2 var(--display); letter-spacing: .04em; text-transform: uppercase; }
+.fire-stage b i { font: normal 15px/1 var(--emoji); margin-right: 4px; }
+.is-dead .fire-stage b { background: #3a332c; color: #cdbf9f; }
+.is-sun .fire-stage b { background: linear-gradient(90deg, #ffb02e, #ffe36e); color: #5a2200; }
+.logs { position: absolute; left: 50%; translate: -50% 0; bottom: 8px; width: 150px; height: 34px; }
 .logs span { position: absolute; left: 50%; bottom: 0; width: 140px; height: 16px; border-radius: 8px; background: linear-gradient(180deg, #7a4a26, #4a2c16); translate: -50% 0; }
 .logs span:nth-child(1) { rotate: 14deg; }
 .logs span:nth-child(2) { rotate: -14deg; }
@@ -425,7 +435,7 @@ body.blaze .fire-count { text-shadow: 0 0 28px rgba(255,150,40,.8); }
   .me-chip span:last-child { display: none; }
   .me-chip { padding: 6px 10px; }
   .fire-panel { grid-template-columns: 1fr; text-align: center; padding: 22px 18px; gap: 6px; }
-  .fire-visual { height: 170px; }
+  .fire-visual { height: 290px; }
   .fuelers { justify-content: center; }
   .gate-inner { padding: 28px 18px 36px; }
   .gate-card { padding: 22px 18px 16px; }

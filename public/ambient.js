@@ -237,6 +237,10 @@ export function createAmbient(bgCanvas, fgCanvas) {
       target = LEVELS[name] ?? LEVELS.gate;
       if (reduced.matches) drawBackground(0, target);
     },
+    // A small flare-up, e.g. when a log pops.
+    kick(amount = 0.1) {
+      if (!reduced.matches) boost = Math.min(0.9, boost + amount);
+    },
     setSource(fn) {
       source = fn;
     },

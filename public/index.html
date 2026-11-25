@@ -99,12 +99,13 @@
         <!-- Lửa hội -->
         <section class="fire-panel" id="fire-panel" aria-labelledby="fire-title">
           <div class="fire-visual">
-            <div class="flame" id="flame" aria-hidden="true"><i></i><i></i><i></i><b></b></div>
             <div class="logs" aria-hidden="true"><span></span><span></span><span></span></div>
+            <div class="campfire" id="flame" aria-hidden="true"><canvas id="fire-canvas"></canvas></div>
           </div>
           <div class="fire-info">
             <p class="kicker" id="fire-kicker">Lửa của hội</p>
             <h2 id="fire-title" class="fire-count"><span id="fire-days">0</span><small> ngày liên tục</small></h2>
+            <p class="fire-stage" id="fire-stage"></p>
             <p class="fire-status" id="fire-status"></p>
             <div class="fuel" aria-live="polite">
               <div class="fuel-bar"><span id="fuel-fill"></span></div>

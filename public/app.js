@@ -1,5 +1,6 @@
 // Những Con Cá Bị Trừ KPI — client.
 import { createAmbient } from './ambient.js';
+import { createCampfire, stageOf, STAGES } from './campfire.js';
 // Mọi nội dung người dùng nhập đều đi qua textContent, không bao giờ innerHTML.
 
 const AVATARS = ['🦊', '🐼', '🐸', '🐧', '🦉', '🐙', '🦖', '🐱', '🐶', '🐹', '🦄', '🐢', '🐝', '🦥', '🐻', '🐵'];
@@ -22,6 +23,18 @@ const CHAT_SLOW = 20000;
 
 const $ = (id) => document.getElementById(id);
 const ambient = createAmbient($('ambient-bg'), $('ambient-fg'));
+// "Đùng!": every log pop nudges the background fire and kicks the campfire.
+const campfire = createCampfire($('fire-canvas'), {
+  onPop(strength) {
+    ambient.kick(0.08 * strength);
+    const el = $('flame');
+    el.classList.remove('pop');
+    void el.offsetWidth;
+    el.classList.add('pop');
+  },
+});
+// Preview a fire stage without waiting weeks: /?lua=5 shows the sun.
+const PREVIEW_STAGE = Math.min(5, Math.max(0, Math.round(Number(new URLSearchParams(location.search).get('lua')) || 0)));
 let token = localStorage.getItem(TOKEN_KEY) || '';
 let state = null;
 let clockOffset = 0;
@@ -242,6 +255,7 @@ function celebrate(prev, next) {
   const added = next.fire.fuel - prev.fire.fuel;
   const justLit = !prev.fire.litToday && next.fire.litToday;
   ambient.burst(justLit ? 3 : added);
+  campfire.pop(justLit ? 3 : 2);
   const panel = $('fire-panel');
   panel.classList.remove('flare');
   void panel.offsetWidth; // restart the animation
@@ -255,10 +269,37 @@ function celebrate(prev, next) {
   const mineAnon = next.me.answer?.anon && !prev.me.answer ? 1 : 0;
   const newAnon = anonCount(next.fire.fuelers) - anonCount(prev.fire.fuelers) - mineAnon;
   if (newAnon > 0) others.push(newAnon === 1 ? 'Một con cá giấu tên' : `${newAnon} con cá giấu tên`);
-  if (!others.length) return;
-  toast(justLit
-    ? `🔥 ${others.join(', ')} vừa góp củi. LỬA HỘI ĐÃ ĐỦ CỦI, CHÁY HẾT CỠ!`
-    : `🪵 ${others.join(', ')} vừa góp củi! Lửa bùng lên rồi.`);
+  if (others.length) {
+    toast(justLit
+      ? `🔥 ${others.join(', ')} vừa góp củi. LỬA HỘI ĐÃ ĐỦ CỦI, CHÁY HẾT CỠ!`
+      : `🔥 ${others.join(', ')} vừa góp củi! Lửa bùng lên rồi.`);
+  }
+  // Level-up comes a moment later, after whichever "log added" toast is showing.
+  const stage = stageOf(next.fire.current);
+  if (stage > stageOf(prev.fire.current)) {
+    const st = STAGES[stage];
+    setTimeout(() => {
+      toast(`${st.icon} LỬA HỘI LÊN CẤP ${stage}: ${st.name.toUpperCase()}!${stage === 5 ? ' Yêu cả hội ❤' : ''}`);
+      campfire.pop(3);
+      ambient.burst(3);
+    }, 1800);
+  }
+}
+
+function renderStage(f, mode) {
+  const stage = PREVIEW_STAGE || stageOf(f.current);
+  const burning = PREVIEW_STAGE ? 'is-lit' : mode;
+  campfire.set(stage, burning);
+  $('fire-panel').classList.toggle('is-sun', stage === 5 && burning !== 'is-dead');
+  const st = STAGES[stage];
+  const badge = el('b');
+  badge.append(el('i', '', st.icon), stage ? `Cấp ${stage}/5 · ${st.name}` : st.name);
+  let note;
+  if (stage === 5) note = 'Lửa hội đã hóa mặt trời. Yêu cả hội ❤';
+  else if (stage === 0) note = 'Góp củi để nhóm lửa. Đủ 21 ngày liên tục, lửa hóa mặt trời ☀️';
+  else note = `Còn ${STAGES[stage + 1].min - f.current} ngày nữa lên ${STAGES[stage + 1].name} · ${Math.max(0, 21 - f.current)} ngày nữa hóa mặt trời ☀️`;
+  if (PREVIEW_STAGE) note = 'Đang xem trước (bỏ ?lua= trên link để về lửa thật)';
+  $('fire-stage').replaceChildren(badge, note);
 }
 
 function tick() {
@@ -295,12 +336,13 @@ function renderFire() {
   else mode = 'is-dead';
   panel.classList.remove('is-lit', 'is-rest', 'is-weak', 'is-dead');
   panel.classList.add(mode);
-  ambient.setLevel(mode);
-  document.body.classList.toggle('blaze', mode === 'is-lit');
+  ambient.setLevel(PREVIEW_STAGE ? 'is-lit' : mode);
+  renderStage(f, mode);
+  document.body.classList.toggle('blaze', mode === 'is-lit' || PREVIEW_STAGE > 0);
 
   $('fire-days').textContent = f.current;
   $('fire-kicker').textContent = {
-    'is-lit': 'Lửa của hội đang cháy',
+    'is-lit': stageOf(f.current) === 5 ? 'Lửa hội đã hóa MẶT TRỜI ☀️' : 'Lửa của hội đang cháy',
     'is-rest': 'Cuối tuần · lửa đang ủ than',
     'is-weak': 'Lửa đang leo lét',
     'is-dead': f.deaths ? 'Lửa đã tắt' : 'Lửa chưa được nhóm',
